@@ -72,14 +72,25 @@ let DisplayTickets() =
 
 DisplayTickets()
 
+let thread = new Object()
+
 let BookSeat customerName seatNumber =
-        if seatNumber >= 1 && seatNumber <= 10 then
-            let ticket = List.tryFind (fun t -> t.seat = seatNumber && t.customer = "") tickets
-            match ticket with
-            | Some(t) ->
-                printfn "Booking seat %d for customer %s..." seatNumber customerName
-                tickets <- List.map (fun t -> if t.seat = seatNumber then { t with customer = customerName } else t) tickets
-                printfn "Seat %d booked successfully for customer %s" seatNumber customerName
-            | None -> printfn "Seat %d is already booked or invalid" seatNumber
-        else
-            printfn "Invalid seat number: %d" seatNumber
+    if seatNumber >= 1 && seatNumber <= 10 then
+        let ticket =
+            lock thread (fun () ->
+                List.tryFind (fun t -> t.seat = seatNumber && t.customer = "") tickets)
+        match ticket with
+        | Some(t) ->
+            printfn "Booking seat %d for customer %s..." seatNumber customerName
+            lock thread (fun () ->
+                tickets <- List.map (fun t -> if t.seat = seatNumber then { t with customer = customerName } else t) tickets)
+            printfn "Seat %d booked for customer %s" seatNumber customerName
+        | None -> printfn "Seat %d is invalid" seatNumber
+    else
+        printfn "Invalid seat number: %d" seatNumber
+
+BookSeat "Bill" 1
+BookSeat "Diana" 2
+BookSeat "Chris" 5
+
+DisplayTickets()
